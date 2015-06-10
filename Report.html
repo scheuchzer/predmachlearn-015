@@ -76,18 +76,19 @@ img {
 <h2>Getting the training data</h2>
 <pre class="r"><code>library(caret)
 set.seed(123456)
-trainingFile &lt;- './data/pml-training.csv';
+trainingFile &lt;- 'data/pml-training.csv';
 trainingDataUrl &lt;- 'https://d396qusza40orc.cloudfront.net/predmachlearn/pml-training.csv'
 testFile &lt;- './data/pml-testing.csv'
 testDataUrl &lt;- 'https://d396qusza40orc.cloudfront.net/predmachlearn/pml-testing.csv'
 
-if (!file.exists('data')) {
-  dir.create('data')  
+if (!file.exists('./data')) {
+  dir.create('./data')  
 }
 
-loadData &lt;- function(fileName, url) {  
+loadData &lt;- function(fileName, url) { 
+  message(url)
   if (!file.exists(fileName)) {
-    download.file(url, fileName);
+    download.file(url, fileName, method = &quot;curl&quot;);
   } 
   return(read.csv(fileName, na.strings=c(&quot;NA&quot;,&quot;&quot;)));
 }
@@ -156,7 +157,6 @@ dim(trainData)</code></pre>
 <h3>Recursive Partitioning</h3>
 <p>We use all variables as predictors for <code>classe</code>.</p>
 <pre class="r"><code>rpartModFit &lt;- train(classe ~ ., method=&quot;rpart&quot;, data = trainData)</code></pre>
-<pre><code>## Loading required package: rpart</code></pre>
 <pre class="r"><code>rpartPredictions &lt;- predict(rpartModFit, testData)
 rpartConfusionMatrix &lt;- confusionMatrix(rpartPredictions, testData$classe)
 rpartConfusionMatrix$overall[&quot;Accuracy&quot;]</code></pre>
@@ -171,22 +171,16 @@ rpartConfusionMatrix$overall[&quot;Accuracy&quot;]</code></pre>
 miniTrainData &lt;- trainData[miniTrainSetIndexes,]</code></pre>
 <p>Again, we use all variables to fit the model.</p>
 <pre class="r"><code># use all CPU cores
-library(doParallel)</code></pre>
-<pre><code>## Loading required package: foreach
-## Loading required package: iterators
-## Loading required package: parallel</code></pre>
-<pre class="r"><code>cl &lt;- makeCluster(detectCores())
+library(doParallel)
+cl &lt;- makeCluster(detectCores())
 registerDoParallel(cl, cores = detectCores())
 rfModFit &lt;- train(classe ~ ., method=&quot;rf&quot;, data = miniTrainData, trControl=trainControl(method=&quot;cv&quot;,number=5),prox=TRUE,allowParallel=TRUE)</code></pre>
-<pre><code>## Loading required package: randomForest
-## randomForest 4.6-10
-## Type rfNews() to see new features/changes/bug fixes.</code></pre>
 <pre class="r"><code>randomForestTestPredictions &lt;- predict(rfModFit, testData)
 randomForestConfustionMAtrix &lt;- confusionMatrix(randomForestTestPredictions, testData$classe)
 randomForestConfustionMAtrix$overall[&quot;Accuracy&quot;]</code></pre>
 <pre><code>##  Accuracy 
-## 0.9838573</code></pre>
-<p>It looks like we have a quite good predictor with an estimated accuracy of <span class="math">\(98.39\)</span>% and an estimated out-of-sample error of <span class="math">\(1.61\)</span>% when testing against the test data. We choose to use the random forest model for the submission.</p>
+## 0.9841971</code></pre>
+<p>It looks like we have a quite good predictor with an estimated accuracy of <span class="math">\(98.42\)</span>% and an estimated out-of-sample error of <span class="math">\(1.58\)</span>% when testing against the test data. We choose to use the random forest model for the submission.</p>
 </div>
 </div>
 <div id="submission" class="section level2">
@@ -195,6 +189,7 @@ randomForestConfustionMAtrix$overall[&quot;Accuracy&quot;]</code></pre>
 <div id="load-validation-data-set" class="section level3">
 <h3>Load validation data set</h3>
 <pre class="r"><code>pmlTesting &lt;- loadData(testFile, testDataUrl)</code></pre>
+<pre><code>## https://d396qusza40orc.cloudfront.net/predmachlearn/pml-testing.csv</code></pre>
 </div>
 <div id="prediction" class="section level3">
 <h3>Prediction</h3>
