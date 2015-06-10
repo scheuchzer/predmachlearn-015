@@ -13,21 +13,22 @@ The report concludes that we can gain an accuracy greater than 98% if we choose 
 
 ## Getting the training data
 
-```{r message=FALSE, cache=TRUE}
+```{r message=FALSE}
 library(caret)
 set.seed(123456)
-trainingFile <- './data/pml-training.csv';
+trainingFile <- 'data/pml-training.csv';
 trainingDataUrl <- 'https://d396qusza40orc.cloudfront.net/predmachlearn/pml-training.csv'
 testFile <- './data/pml-testing.csv'
 testDataUrl <- 'https://d396qusza40orc.cloudfront.net/predmachlearn/pml-testing.csv'
 
-if (!file.exists('data')) {
-  dir.create('data')  
+if (!file.exists('./data')) {
+  dir.create('./data')  
 }
 
-loadData <- function(fileName, url) {  
+loadData <- function(fileName, url) { 
+  message(url)
   if (!file.exists(fileName)) {
-    download.file(url, fileName);
+    download.file(url, fileName, method = "curl");
   } 
   return(read.csv(fileName, na.strings=c("NA","")));
 }
