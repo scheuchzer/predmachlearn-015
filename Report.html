@@ -156,7 +156,6 @@ dim(trainData)</code></pre>
 <h3>Recursive Partitioning</h3>
 <p>We use all variables as predictors for <code>classe</code>.</p>
 <pre class="r"><code>rpartModFit &lt;- train(classe ~ ., method=&quot;rpart&quot;, data = trainData)</code></pre>
-<pre><code>## Loading required package: rpart</code></pre>
 <pre class="r"><code>rpartPredictions &lt;- predict(rpartModFit, testData)
 rpartConfusionMatrix &lt;- confusionMatrix(rpartPredictions, testData$classe)
 rpartConfusionMatrix$overall[&quot;Accuracy&quot;]</code></pre>
@@ -171,16 +170,10 @@ rpartConfusionMatrix$overall[&quot;Accuracy&quot;]</code></pre>
 miniTrainData &lt;- trainData[miniTrainSetIndexes,]</code></pre>
 <p>Again, we use all variables to fit the model.</p>
 <pre class="r"><code># use all CPU cores
-library(doParallel)</code></pre>
-<pre><code>## Loading required package: foreach
-## Loading required package: iterators
-## Loading required package: parallel</code></pre>
-<pre class="r"><code>cl &lt;- makeCluster(detectCores())
+library(doParallel)
+cl &lt;- makeCluster(detectCores())
 registerDoParallel(cl, cores = detectCores())
 rfModFit &lt;- train(classe ~ ., method=&quot;rf&quot;, data = miniTrainData, trControl=trainControl(method=&quot;cv&quot;,number=5),prox=TRUE,allowParallel=TRUE)</code></pre>
-<pre><code>## Loading required package: randomForest
-## randomForest 4.6-10
-## Type rfNews() to see new features/changes/bug fixes.</code></pre>
 <pre class="r"><code>randomForestTestPredictions &lt;- predict(rfModFit, testData)
 randomForestConfustionMAtrix &lt;- confusionMatrix(randomForestTestPredictions, testData$classe)
 randomForestConfustionMAtrix$overall[&quot;Accuracy&quot;]</code></pre>

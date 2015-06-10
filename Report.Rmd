@@ -81,7 +81,7 @@ For the model fitting we look at different algorithms.
 
 We use all variables as predictors for `classe`.
 
-```{r cache=TRUE}
+```{r cache=TRUE, message=FALSE}
 rpartModFit <- train(classe ~ ., method="rpart", data = trainData)
 ```
 
@@ -104,7 +104,7 @@ miniTrainData <- trainData[miniTrainSetIndexes,]
 ```
 
 Again, we use all variables to fit the model.
-```{r cache=TRUE}
+```{r cache=TRUE, message=FALSE}
 # use all CPU cores
 library(doParallel)
 cl <- makeCluster(detectCores())
