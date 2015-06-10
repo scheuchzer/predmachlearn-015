@@ -1,0 +1,152 @@
+---
+title: "Prediction Assignment"
+author: "Thomas Scheuchzer <thomas.scheuchzer@gmx.net>"
+date: "Monday, June 08, 2015"
+output: html_document
+---
+
+## Summary
+This is the report for the prediction assignment of the Coursera course _Practical Machine Learning_. The goal of this report is
+to predict how well people did perform barbell lifts. This report is based on data provided by http://groupware.les.inf.puc-rio.br/har (see the section on the Weight Lifting Exercise Dataset).
+
+The report concludes that we can gain an accuracy greater than 98% if we choose a random forest alogrithm.
+
+## Getting the training data
+
+```{r message=FALSE, cache=TRUE}
+library(caret)
+set.seed(123456)
+trainingFile <- './data/pml-training.csv';
+trainingDataUrl <- 'https://d396qusza40orc.cloudfront.net/predmachlearn/pml-training.csv'
+testFile <- './data/pml-testing.csv'
+testDataUrl <- 'https://d396qusza40orc.cloudfront.net/predmachlearn/pml-testing.csv'
+
+if (!file.exists('data')) {
+  dir.create('data')  
+}
+
+loadData <- function(fileName, url) {  
+  if (!file.exists(fileName)) {
+    download.file(url, fileName);
+  } 
+  return(read.csv(fileName, na.strings=c("NA","")));
+}
+
+pmlTraining <- loadData(trainingFile, trainingDataUrl)
+```
+Only the training data gets loaded at this time. The validation data `pml-testing.csv` will be loaded when running the prediction. This way we can't be tempted to fit on the validation data.
+
+## Data cleaning
+
+```{r cache=TRUE}
+dim(pmlTraining)
+head(names(pmlTraining),10)
+```
+The first six columns are all identifier columns like name and timestamps. We don't need this information for training the model.
+```{r cache=TRUE}
+pmlTraining <- pmlTraining[,-c(1:6)]
+```
+
+Remove zero variance predictors, that means removing columns with few unique values relative to the number of samples and the ratio of the frequency of the most common value to the frequency of the second most common value is large.
+```{r cache=TRUE}
+nzvColumns <- nearZeroVar(pmlTraining)
+names(pmlTraining)[nzvColumns]
+pmlTraining <- pmlTraining[-nzvColumns]
+dim(pmlTraining)
+```
+
+Removing columns with missing values only
+```{r cache=TRUE}
+pmlTraining<-pmlTraining[,colSums(is.na(pmlTraining)) == 0]
+dim(pmlTraining)
+```
+
+
+## Creating training and test sets
+
+Let's split the training data into train and test data. We will train on about 70% of te data and 30% of the data is used for testing.
+```{r cache=TRUE}
+trainSetIndexes <- createDataPartition(pmlTraining$classe, p=0.7, list=FALSE)
+trainData <- pmlTraining[trainSetIndexes,]
+testData <- pmlTraining[-trainSetIndexes,]
+dim(trainData)
+dim(testData)
+```
+
+## Model Fitting
+
+For the model fitting we look at different algorithms.
+
+### Recursive Partitioning
+
+We use all variables as predictors for `classe`.
+
+```{r cache=TRUE}
+rpartModFit <- train(classe ~ ., method="rpart", data = trainData)
+```
+
+
+```{r cache=TRUE}
+rpartPredictions <- predict(rpartModFit, testData)
+rpartConfusionMatrix <- confusionMatrix(rpartPredictions, testData$classe)
+rpartConfusionMatrix$overall["Accuracy"]
+```
+
+With this setup we get a quite poor accuracy of $`r round((rpartConfusionMatrix$overall["Accuracy"])*100, 2)`$%. We could tweak the predictors or we could try an other algorithm. Let's go for the random forest algorithm.
+
+### Random forest
+
+The random forest algorithm is quite slow. Let's reduce the training data set and give it a go. Maybe we're already good enough with less data.
+
+```{r cache=TRUE}
+miniTrainSetIndexes <- createDataPartition(trainData$classe, p=0.3, list=FALSE)
+miniTrainData <- trainData[miniTrainSetIndexes,]
+```
+
+Again, we use all variables to fit the model.
+```{r cache=TRUE}
+# use all CPU cores
+library(doParallel)
+cl <- makeCluster(detectCores())
+registerDoParallel(cl, cores = detectCores())
+rfModFit <- train(classe ~ ., method="rf", data = miniTrainData, trControl=trainControl(method="cv",number=5),prox=TRUE,allowParallel=TRUE)
+```
+
+
+```{r cache=TRUE}
+randomForestTestPredictions <- predict(rfModFit, testData)
+randomForestConfustionMAtrix <- confusionMatrix(randomForestTestPredictions, testData$classe)
+randomForestConfustionMAtrix$overall["Accuracy"]
+```
+
+It looks like we have a quite good predictor with an estimated accuracy of $`r round((randomForestConfustionMAtrix$overall["Accuracy"])*100,2)`$% and an estimated out-of-sample error of $`r round((1-randomForestConfustionMAtrix$overall["Accuracy"])*100,2)`$% when testing against the test data. We choose to use the random forest model for the submission.
+
+## Submission
+
+Now that we've got our model trained it's time to run it agains the validation data and then create the data for the Coursera submission.
+
+### Load validation data set
+
+```{r}
+pmlTesting <- loadData(testFile, testDataUrl)
+```
+
+### Prediction
+
+```{r message=FALSE}
+validationPredictions <- predict(rfModFit, pmlTesting)
+validationPredictions
+```
+
+### Write Submission files
+
+```{r}
+pml_write_files = function(x){
+  n = length(x)
+  for(i in 1:n){
+    filename = paste0("problem_id_",i,".txt")
+    write.table(x[i],file=filename,quote=FALSE,row.names=FALSE,col.names=FALSE)
+  }
+}
+pml_write_files(validationPredictions)
+```
